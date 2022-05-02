@@ -65,7 +65,17 @@ async function run() {
             const data = req.body;
             const result = await inventoriesCollection.insertOne(data);
             res.send(result);
-        })
+        });
+
+        //loading userData
+        app.get('/myinventories', async (req, res) => {
+            const email = req.query.email;
+            console.log(email)
+            const query = { email: email }
+            const cursor = inventoriesCollection.find(query);
+            const result = await cursor.toArray();
+            res.send(result);
+        });
 
 
     }
