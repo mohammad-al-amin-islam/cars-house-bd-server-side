@@ -1,5 +1,6 @@
 const express = require('express');
 const cors = require('cors');
+var jwt = require('jsonwebtoken');
 require('dotenv').config();
 const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 const app = express();
@@ -8,6 +9,23 @@ const port = process.env.PORT || 5000;
 //middle ware
 app.use(cors());
 app.use(express.json());
+
+//verifying Token
+function verifyToken(req, res, next) {
+    const auth = req.headers.authorization;
+    if (!auth) {
+        return res.status(401).send({ message: 'Unauthorized' })
+    }
+    const token = auth.split(' ')[1];
+    jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, (error, decoded) => {
+        if (error) {
+            return res.status(403).send({ message: 'Forbidden' });
+        }
+        req.decoded = decoded;
+        next();
+    })
+
+}
 
 
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASSWORD}@cluster0.xft2s.mongodb.net/myFirstDatabase?retryWrites=true&w=majority`;
@@ -68,14 +86,29 @@ async function run() {
         });
 
         //loading userData
-        app.get('/myinventories', async (req, res) => {
+        app.get('/myinventories', verifyToken, async (req, res) => {
+            const getEmail = req.decoded.email;
             const email = req.query.email;
-            console.log(email)
-            const query = { email: email }
-            const cursor = inventoriesCollection.find(query);
-            const result = await cursor.toArray();
-            res.send(result);
+            if (getEmail === email) {
+                const query = { email: email }
+                const cursor = inventoriesCollection.find(query);
+                const result = await cursor.toArray();
+                res.send(result);
+            }
+            else {
+                res.status(403).send({ message: 'Forbidden' });
+            }
+
         });
+
+        //jwt token creating 
+        app.post('/jwtlogin', async (req, res) => {
+            const userInfo = req.body;
+            const token = jwt.sign(userInfo, process.env.ACCESS_TOKEN_SECRET, {
+                expiresIn: "1d"
+            });
+            res.send({ token });
+        })
 
 
     }
